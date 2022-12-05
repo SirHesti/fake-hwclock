@@ -42,7 +42,12 @@ RT | Description
  9 | command not found
 10 | settimeofday error
 
-#-[ EOF Readme ]------------------------------------------------------------- */
+#-[ EOF Readme ]-----------[ Revision ]-----------------------------------------
+
+ 26.11.22 HS local_strptime aendert den uebergebenen string -> jetzt eine Kopie davon
+             Datum verkehrt herum abgefragt
+			 
+------------------------------------------------------------------------------*/
 
 #ifdef __ARM_FP
 #ifdef __linux__
@@ -156,6 +161,7 @@ signed int main(int argc, char *argv[])
     time_t     HWCLOCK_EPOCH_SEC;           // date hardcoded secs for date 2016-04-15 00:00:00
     time_t     NOW_SEC;                     // secs for $NOW; then time readed from system ( this can be 1.1.1970 )
     char       SAVED[32];                   // date read from FILE
+    char       cSAVED[32];                  // copy of SAVED
     struct tm  savedtime;                   // date read from FILE converted in this struct to create SAVED_SEC
     time_t     SAVED_SEC;                   // seconds from FILE
     struct timespec tsp;                    // struct to write wit clock_settime
@@ -214,10 +220,11 @@ signed int main(int argc, char *argv[])
             if (rc==5) printf ("size error in %s\n", FILE);
             return rc;
         }
-        SAVED_SEC = local_strptime(SAVED, tFormat, &savedtime);
+        strcpy (cSAVED, SAVED);
+        SAVED_SEC = local_strptime(cSAVED, tFormat, &savedtime);
         if (!FORCE)
         {
-            if (NOW_SEC < SAVED_SEC)
+            if (NOW_SEC > SAVED_SEC)
             {
                 printf ("Current system time: %s\n", useTime(NOW_SEC));
                 printf ("fake-hwclock saved clock information is in the past: %s\n", SAVED);
@@ -237,14 +244,13 @@ signed int main(int argc, char *argv[])
         // this works!! but if the systemd-timesyncd running, this will be overwritten
         rc = clock_settime(CLOCK_REALTIME, &tsp);
 #endif // OS_RASPBERRY
-        if (!rc) return 0;
-        printf ("error while settime rc=%i\n", rc);
-        return 10;
+        if (rc) printf ("error while settime rc=%i errno=%i\n", rc, errno);
+        return rc;
     }
     // thats for me to determinate the Version
     if (!strcmp(COMMAND,"--version"))
     {
-        printf ("%s V%u.%u.%u %s %s (w) by Hesti  ", I_PRG, I_MAJOR, I_MINOR, I_BUILD,
+        printf ("fake-hwclock V%u.%u.%u %s %s (w) by Hesti  ", I_MAJOR, I_MINOR, I_BUILD,
 #if ( (defined _M_X64) || (defined _WIN64) )
         "X64"
 #else
