@@ -1,4 +1,4 @@
-# 20.04.2024 10:18:05 Genrated by cbp2cmake V2.4.0 Finale X86 
+# 20.04.2024 10:21:17 Genrated by cbp2cmake V2.4.0 Finale X86 
 project(fake-hwclock LANGUAGES C)
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 set (CMAKE_INSTALL_PREFIX /usr )
