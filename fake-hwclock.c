@@ -46,8 +46,11 @@ RT | Description
 
  26.11.22 HS local_strptime aendert den uebergebenen string -> jetzt eine Kopie davon
              Datum verkehrt herum abgefragt
-			 
+
 ------------------------------------------------------------------------------*/
+
+//-Wall -Wextra -g3
+//#define HS_DEBUG
 
 #ifdef __ARM_FP
 #ifdef __linux__
@@ -58,8 +61,8 @@ RT | Description
 #endif
 
 #ifndef OS_RASBERRY
-#ifdef HS_DEBUG
 #ifdef __WIN32
+#ifdef HS_DEBUG
     #define OS_WINDOWS
     #define OS_VERSION "Windows"
     #define DFLT_ETC "C:\\hs\\etc\\"
@@ -67,13 +70,30 @@ RT | Description
 #endif
 #endif // raspberry
 
+
 #if !defined(OS_RASPBERRY) && !defined(OS_WINDOWS)
+#ifdef __linux__
+    #define OS_LINUX
+    #define OS_VERSION "Linux"
+#ifdef HS_DEBUG
+    //#error debug
+    #define DFLT_ETC "/hs/src/cons/fake-hwclock/etc/"
+#else
+    //#error
+    #define DFLT_ETC "/etc/"
+#endif
+#endif
+#endif
+
+
+#if !defined(OS_RASPBERRY) && !defined(OS_WINDOWS) && !defined(OS_LINUX)
     #error "NO valid OS found. eg. Windows if NoDebug"
 #endif
 
+//#define __STDC_WANT_LIB_EXT1__ 1
 #include <stdio.h>
 #ifndef _MSC_VER
-//include/stdlib.h included wird im Präerkennungsmode für Codeblocks durchlaufen wird
+//include/stdlib.h included wird im PrÃ¤erkennungsmode fuer Codeblocks durchlaufen wird
 #include <../include/stdlib.h>
 #endif
 #include <stdlib.h>
@@ -101,9 +121,11 @@ char *useTime(const time_t t)
 // 2022-11-22 23:12:43
 // 0123456789012345678
 // convert the time ti time_t; this is not the best method, but why not
-time_t local_strptime(char *src, const char *dummy, struct tm *savedtime)
+time_t local_strptime(char *src, const char *dummy __attribute__ ((unused)) , struct tm *savedtime)
 {
-    memset (savedtime, 0, sizeof(struct tm));
+    memset   (savedtime,                    0, sizeof(struct tm));
+    //memset_s (savedtime, sizeof(struct tm), 0, sizeof(struct tm));
+
     src[4]=0;
     src[7]=0;
     src[10]=0;
@@ -115,7 +137,7 @@ time_t local_strptime(char *src, const char *dummy, struct tm *savedtime)
     savedtime->tm_hour  = atoi(&src[11]);
     savedtime->tm_min   = atoi(&src[14]);
     savedtime->tm_sec   = atoi(&src[17]);
-#ifdef OS_RASPBERRY
+#if defined OS_RASPBERRY || defined OS_LINUX
     return timegm(savedtime);
 #endif
 #ifdef OS_WINDOWS
@@ -164,7 +186,7 @@ signed int main(int argc, char *argv[])
     char       cSAVED[32];                  // copy of SAVED
     struct tm  savedtime;                   // date read from FILE converted in this struct to create SAVED_SEC
     time_t     SAVED_SEC;                   // seconds from FILE
-    struct timespec tsp;                    // struct to write wit clock_settime
+    struct timespec tsp __attribute__ ((unused)); // struct to write clock_settime
     char      *COMMAND;                     // from the user (script) input
     int        FORCE;                       // some times out of range, FORCE will overwrite this an demand the COMMAND
     int        rc;                          // internal use for result-codes
@@ -237,10 +259,11 @@ signed int main(int argc, char *argv[])
         tsp.tv_nsec= 0;
 #ifdef OS_WINDOWS
         rc = tsp.tv_sec % 256;
-        printf ("(windows) fake set time to UTC \"%s\"\n",useTime(SAVED_SEC));
+        printf ("(windows) fake set time to UTC \"%s\"  rc=%i\n",useTime(SAVED_SEC), rc);
         rc = 0;
 #endif
-#ifdef OS_RASPBERRY
+#if defined OS_RASPBERRY
+// add this to realaktivate || defined OS_LINUX
         // this works!! but if the systemd-timesyncd running, this will be overwritten
         rc = clock_settime(CLOCK_REALTIME, &tsp);
 #endif // OS_RASPBERRY
@@ -264,6 +287,7 @@ signed int main(int argc, char *argv[])
 #define COMPILER_VERSION 0
 #define COMPILER "unknown "
 #endif // __GNUC__
+//        printf ("file=%s ", FILE);
         printf ("Compiled %s V%i.%02i.%02i (%s) at  : %s %s\n", COMPILER, COMPILER_VERSION / 10000, (COMPILER_VERSION / 100) % 100,COMPILER_VERSION % 100, OS_VERSION, __DATE__, __TIME__);
         return 0;
     }
